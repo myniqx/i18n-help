@@ -1,6 +1,6 @@
 {
   "name": "i18n-help",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "help users to manage multiple common.json file from terminal",
   "main": "src/index.ts",
   "bin": {
