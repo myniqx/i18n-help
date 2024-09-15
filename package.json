@@ -5,6 +5,7 @@
   "main": "src/index.ts",
   "bin": {
     "i18nHelp": "./dist/index.js",
+    "i18nhelp": "./dist/index.js",
     "i18n-help": "./dist/index.js"
   },
   "files": [
