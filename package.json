@@ -1,0 +1,31 @@
+{
+  "name": "i18n-help",
+  "version": "0.1.2",
+  "description": "help users to manage multiple common.json file from terminal",
+  "main": "src/index.ts",
+  "bin": {
+    "i18nHelp": "./dist/index.js",
+    "i18n-help": "./dist/index.js"
+  },
+  "files": [
+    "dist/",
+    "readme.md",
+    "package.json"
+  ],
+  "scripts": {
+    "build": "npx tsc",
+    "dev": "tsx src/index.ts"
+  },
+  "author": "myniqx",
+  "license": "MIT",
+  "dependencies": {
+    "commander": "^12.1.0",
+    "deepl-node": "^1.13.1"
+  },
+  "devDependencies": {
+    "@types/commander": "^2.12.2",
+    "typescript": "^5.6.2",
+    "tsx": "^4.19.1"
+  },
+  "type": "module"
+}

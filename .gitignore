@@ -1,0 +1,4 @@
+node_modules/
+
+i18helper.config.json
+tsconfig.tsbuildinfo
