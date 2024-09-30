@@ -5,6 +5,7 @@ import * as path from "path";
 import * as deepL from 'deepl-node';
 import { dirname } from "path";
 import { fileURLToPath } from "url";
+import dotenv from 'dotenv-flow';
 const program = new Command();
 const execute = "#G$ i18nHelp# ";
 const example = "\n#RExample#: ";
@@ -54,7 +55,7 @@ class ExtConfig {
         this.targetFolder = config.targetFolder;
         this.additionalFolders = config.additionalFolders;
         this.sortItemByName = config.sortItemByName;
-        this.deepL_ApiKey = config.deepL_ApiKey;
+        this.deepL_ApiKey = "";
         this.folders = fs.readdirSync(config.targetFolder);
     }
     forEachFolder(callback) {
@@ -81,7 +82,7 @@ class ExtConfig {
         for (const folder of this.folders) {
             const commonJsonPath = path.join(this.targetFolder, folder, "common.json");
             if (!fs.existsSync(commonJsonPath))
-                return;
+                continue;
             try {
                 const commonJson = fs.readFileSync(commonJsonPath, "utf8");
                 const commonJsonObj = JSON.parse(commonJson);
@@ -89,6 +90,17 @@ class ExtConfig {
             }
             catch {
             }
+        }
+    }
+    copyToAllTargets() {
+        this.foldersCheck();
+        for (const folder of this.folders) {
+            const commonJsonPath = path.join(this.targetFolder, folder, "common.json");
+            if (!fs.existsSync(commonJsonPath))
+                continue;
+            const commonJson = fs.readFileSync(commonJsonPath, "utf8");
+            const additionalMessage = this.writeToAdditionalFolders(folder, commonJson);
+            logExt(`Copied to #G${folder}# folder${additionalMessage}.`);
         }
     }
     writeToAdditionalFolders(folder, data) {
@@ -104,8 +116,18 @@ class ExtConfig {
             "." :
             ` and #Y${this.additionalFolders.length}# additional folders.`;
     }
+    readDeepLApiKey() {
+        if (this.deepL_ApiKey)
+            return;
+        dotenv.config();
+        this.deepL_ApiKey = process.env.DEEPL_API_KEY ?? "";
+        if (!this.deepL_ApiKey)
+            logExt("DeepL api key hasn't found. Auto-translate will be#R disabled#.");
+        else
+            logExt(`DeepL api key(${this.deepL_ApiKey.slice(0, 3)}...${this.deepL_ApiKey.slice(-3)}) found. Auto-translate will be#G enabled#.`);
+    }
 }
-const readConfig = () => {
+const readConfig = (readEnv = false) => {
     const configFile = path.join(process.cwd(), "i18nHelper.config.json");
     if (!fs.existsSync(configFile)) {
         throw new Error("i18nHelper.config.json not found. Please run setup command first.");
@@ -117,10 +139,9 @@ const readConfig = () => {
     if (!fs.existsSync(config.targetFolder)) {
         console.warn("Target folder not found : " + config.targetFolder);
     }
-    if (!config.deepL_ApiKey || !config.deepL_ApiKey.length) {
-        config.deepL_ApiKey = process.env.DEEPL_API_KEY || "";
-    }
     const configExt = new ExtConfig(config);
+    if (readEnv)
+        configExt.readDeepLApiKey();
     return configExt;
 };
 program
@@ -133,8 +154,7 @@ program
     const config = {
         targetFolder,
         additionalFolders: additionalFolders ?? [],
-        sortItemByName: true,
-        deepL_ApiKey: ""
+        sortItemByName: true
     };
     fs.writeFileSync(configFile, JSON.stringify(config, null, 2));
     console.log("i18nHelper.config.json has been created.");
@@ -197,6 +217,17 @@ ${example}:
     find(anyWord, searchIn ?? "both", locale);
 });
 /******************************
+  COPY
+
+*******************************/
+program
+    .command("copy")
+    .description("Copies locale files to target folder.")
+    .action(() => {
+    const config = readConfig();
+    config.copyToAllTargets();
+});
+/******************************
   ADD
 
 *******************************/
@@ -226,10 +257,10 @@ function sortObjectKeys(obj) {
  * @param overwrite If true, overwrite existing key.
  */
 const add = async (key, value, localeValues = {}, overwrite = false) => {
-    const config = readConfig();
+    const config = readConfig(true);
     await config.forEachFile(async (folder, commonJsonPath, commonJsonObj) => {
         if (commonJsonObj[key] && !overwrite) {
-            logExt(`Key #G${key}# already #Rexists# in #G${folder}# folder. try "#Y--overwrite#" if you want to overwrite.`);
+            logExt(`Key #G${key}# already#R exists# in #G${folder}# folder. try "#Y--overwrite#" if you want to overwrite.`);
             return;
         }
         const localeValue = localeValues[folder] ?? (await translateText(config.deepL_ApiKey, value, folder));

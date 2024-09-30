@@ -1,12 +1,12 @@
 
 
 # i18n-help
----------------
+
 
 A command-line tool to help manage multiple common.json files for internationalization (i18n) purposes.
 
 ## Installation
----------------
+
 
 You can install i18n-help using npm or yarn:
 
@@ -21,14 +21,14 @@ yarn global add i18n-help
 ```
 
 ## Program Usage
------------------
 
 ### Commands
 
 The following commands are available:
 
-#### `setup`
 
+> #### `setup`
+----------------
 | Option | Description |
 | --- | ---  |
 | `<targetFolder>` | Target folder to setup |
@@ -50,12 +50,10 @@ this is the `i18nHelper.config.json` config file.
     "../other/path/to/copy/targetFolder/1",
     "../other/path/to/copy/targetFolder/2"
   ],
-  "sortItemByName": true,
-  "deepL_ApiKey": "deepl api key to auto translate when using add command"
+  "sortItemByName": true
 }
-```
-
-#### `find`
+```    
+> #### `find`
 
 | Option | Description |
 | --- | --- |
@@ -71,7 +69,17 @@ i18nHelp find hello --search-in key --locale en
 # This command will search for the word "hello" in the "key" field of the "tr" locale in the common.json files.
 ```
 
-#### `add`
+> #### `copy`
+
+Copies locale files from `targetFolder` to `additionalFolders`. This ll come in handy if you manually modify the files.
+
+Example:
+```bash
+i18nHelp copy
+# This command will copies files from `targetFolder` to `additionalFolders`
+```
+
+> #### `add`
 
 | Option | Description |
 | --- | --- |
@@ -85,10 +93,15 @@ Adds a new key-value pair to all common.json files.
 Example:
 ```bash
 i18nHelp add hello world --locale tr=merhaba --overwrite
-# This command will add the word 'hello' with value 'world' and the Turkish value 'merhaba' to the common.json files, overwriting any existing key. And if deepL_ApiKey has set, default word 'world' will be translated to related language except locale "tr" because it set manually.
+# This command will add the word 'hello' with value 'world' and the Turkish value 'merhaba' to the common.json files, overwriting any existing key. And if DEEPL_API_KEY has set in your `.env` file, default word 'world' will be translated to related language except locale "tr" because it's manually set.
 ```
 
-#### `delete`
+in your `.env.*` files:
+```.env
+DEEPL_API_KEY=deepL api key
+```
+
+> #### `delete`
 
 | Option | Description |
 | --- | --- |
@@ -103,7 +116,7 @@ i18nHelp delete hello --selective
 # This command will find all occurrences of the word 'hello' in the common.json files, including partial matches, and ask you to select which ones to delete, separated by commas (e.g. 1,3,5). If "--selective" is not used, the command will delete the key only if it matches exactly.
 ```
 
-#### `unused`
+> #### `unused`
 
 | Option | Description|
 | --- | ---|
