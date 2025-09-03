@@ -1,0 +1,15 @@
+{
+  "appName": "Test App",
+  "cancelButton": "Abbrechen",
+  "deleteConfirm": "Sind Sie sicher, dass Sie löschen möchten?",
+  "errorMessage": "Etwas ist schief gelaufen",
+  "hello": "Hallo",
+  "INVALID_KEY": "Skip Validation",
+  "loginButton": "Anmelden",
+  "logoutButton": "Abmelden",
+  "manualKey": "Manual Value",
+  "saveButton": "Speichern",
+  "searchPlaceholder": "Suchen...",
+  "testInvalid": "Fixed Case",
+  "welcome": "Willkommen in unserer Anwendung"
+}

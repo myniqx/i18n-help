@@ -1,0 +1,23 @@
+{
+  "appName": "Test App",
+  "emptyTest": "",
+  "form": {
+    "loginButton": "Anmelden",
+    "logoutButton": "Abmelden",
+    "saveButton": "Speichern",
+    "cancelButton": "Abbrechen"
+  },
+  "hello": "Hallo",
+  "messages": {
+    "deleteConfirm": "Sind Sie sicher, dass Sie löschen möchten?",
+    "errorMessage": "Etwas ist schief gelaufen"
+  },
+  "navigation": {
+    "home": "Startseite",
+    "about": "Über uns",
+    "contact": "Kontakt"
+  },
+  "specialChars": "üöğışç çümlə",
+  "veryLongKeyNameThatShouldStillWorkProperly": "Long key test",
+  "welcome": "Willkommen in unserer Anwendung"
+}

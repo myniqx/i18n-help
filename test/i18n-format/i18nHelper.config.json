@@ -1,0 +1,6 @@
+{
+  "targetFolder": "./locales",
+  "isIntl": false,
+  "keyCase": "camelCase",
+  "sortItemByName": true
+}

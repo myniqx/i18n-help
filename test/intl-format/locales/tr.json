@@ -1,0 +1,23 @@
+{
+  "appName": "Test Uygulaması",
+  "emptyTest": "",
+  "form": {
+    "loginButton": "Giriş Yap",
+    "logoutButton": "Çıkış Yap",
+    "saveButton": "Kaydet",
+    "cancelButton": "İptal"
+  },
+  "hello": "Merhaba",
+  "messages": {
+    "deleteConfirm": "Silmek istediğinizden emin misiniz?",
+    "errorMessage": "Bir şeyler ters gitti"
+  },
+  "navigation": {
+    "home": "Ana Sayfa",
+    "about": "Hakkında",
+    "contact": "İletişim"
+  },
+  "specialChars": "üöğışç çümlə",
+  "veryLongKeyNameThatShouldStillWorkProperly": "Long key test",
+  "welcome": "Uygulamamıza hoş geldiniz"
+}

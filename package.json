@@ -1,8 +1,19 @@
 {
   "name": "i18n-help",
-  "version": "0.1.5",
-  "description": "help users to manage multiple common.json file from terminal",
+  "version": "0.1.6",
+  "description": "CLI tool for managing i18n and intl localization files with nested JSON support",
   "main": "src/index.ts",
+  "keywords": [
+    "i18n",
+    "intl", 
+    "internationalization",
+    "localization",
+    "cli",
+    "translation",
+    "json",
+    "deepl",
+    "typescript"
+  ],
   "bin": {
     "i18nHelp": "./dist/index.js",
     "i18nhelp": "./dist/index.js",
@@ -14,9 +25,21 @@
     "package.json"
   ],
   "scripts": {
-    "build": "npx tsc",
-    "dev": "tsx src/index.ts"
+    "build": "tsc",
+    "dev": "tsx src/index.ts",
+    "test": "cd test && ./run_tests.sh",
+    "clean": "rm -rf dist",
+    "prepare": "npm run build",
+    "lint": "tsc --noEmit"
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/myniqx/i18n-help.git"
+  },
+  "bugs": {
+    "url": "https://github.com/myniqx/i18n-help/issues"
+  },
+  "homepage": "https://github.com/myniqx/i18n-help#readme",
   "author": "myniqx",
   "license": "MIT",
   "dependencies": {

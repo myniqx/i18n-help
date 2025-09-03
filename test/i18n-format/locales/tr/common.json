@@ -1,0 +1,15 @@
+{
+  "appName": "Test Uygulaması",
+  "cancelButton": "İptal",
+  "deleteConfirm": "Silmek istediğinizden emin misiniz?",
+  "errorMessage": "Bir şeyler ters gitti",
+  "hello": "Merhaba",
+  "INVALID_KEY": "Skip Validation",
+  "loginButton": "Giriş Yap",
+  "logoutButton": "Çıkış Yap",
+  "manualKey": "Manuel Değer",
+  "saveButton": "Kaydet",
+  "searchPlaceholder": "Ara...",
+  "testInvalid": "Fixed Case",
+  "welcome": "Uygulamamıza hoş geldiniz"
+}

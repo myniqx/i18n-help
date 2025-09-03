@@ -77,7 +77,17 @@ class ExtConfig implements Config {
     this.keyCase = config.keyCase
     this.sortItemByName = config.sortItemByName
     this.deepL_ApiKey = "";
-    this.folders = fs.readdirSync(config.targetFolder)
+    
+    if (config.isIntl) {
+      // For intl: get language codes from .json filenames
+      this.folders = fs.readdirSync(config.targetFolder)
+        .filter(file => file.endsWith('.json'))
+        .map(file => file.replace('.json', ''))
+    } else {
+      // For i18n: get folder names  
+      this.folders = fs.readdirSync(config.targetFolder)
+        .filter(item => fs.statSync(path.join(config.targetFolder, item)).isDirectory())
+    }
   }
 
   forEachFolder(callback: (folder: string) => void): void {
@@ -96,27 +106,32 @@ class ExtConfig implements Config {
   getCommonFileAsObject(folder: string | null) {
     this.foldersCheck()
     const firstFolder = folder ?? this.folders[0]
-    const commonJsonPath = path.join(this.targetFolder, firstFolder, "common.json")
+    const commonJsonPath = this.isIntl 
+      ? path.join(this.targetFolder, `${firstFolder}.json`)
+      : path.join(this.targetFolder, firstFolder, "common.json")
 
+    const fileName = this.isIntl ? `${firstFolder}.json` : "common.json"
     if (!fs.existsSync(commonJsonPath)) {
       throw new Error(colored(
-        `No#R common.json# file found in #R${firstFolder}# folder.`
+        `No#R ${fileName}# file found${this.isIntl ? '' : ` in #R${firstFolder}# folder`}.`
       ))
     }
 
     const commonJson = fs.readFileSync(commonJsonPath, "utf8")
-    return JSON.parse(commonJson) as Record<string, string>
+    return JSON.parse(commonJson) as Record<string, any>
   }
 
-  async forEachFile(callback: (folder: string, filePath: string, data: Record<string, string>) => Promise<void>) {
+  async forEachFile(callback: (folder: string, filePath: string, data: Record<string, any>) => Promise<void>) {
     this.foldersCheck()
     for (const folder of this.folders) {
-      const commonJsonPath = path.join(this.targetFolder, folder, "common.json");
+      const commonJsonPath = this.isIntl 
+        ? path.join(this.targetFolder, `${folder}.json`)
+        : path.join(this.targetFolder, folder, "common.json");
       if (!fs.existsSync(commonJsonPath)) continue;
 
       try {
         const commonJson = fs.readFileSync(commonJsonPath, "utf8");
-        const commonJsonObj = JSON.parse(commonJson) as Record<string, string>;
+        const commonJsonObj = JSON.parse(commonJson) as Record<string, any>;
         callback(folder, commonJsonPath, commonJsonObj)
       } catch {
       }
