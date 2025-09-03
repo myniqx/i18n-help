@@ -1,12 +1,9 @@
 
-
 # i18n-help
 
-
-A command-line tool to help manage multiple common.json files for internationalization (i18n) purposes.
+A command-line tool to help manage multiple common.json files for internationalization (i18n) and intl purposes.
 
 ## Installation
-
 
 You can install i18n-help using npm or yarn:
 
@@ -26,13 +23,11 @@ yarn global add i18n-help
 
 The following commands are available:
 
-
 > #### `setup`
 ----------------
 | Option | Description |
 | --- | ---  |
 | `<targetFolder>` | Target folder to setup |
-| `[additionalFolders...]` | Additional folders to copy locale files to |
 
 Sets up the required config file.
 
@@ -42,17 +37,52 @@ i18nHelp setup /path/to/target/folder
 # This command creates 'i18nHelper.config.json' file with targetFolder value set.
 ```
 
-this is the `i18nHelper.config.json` config file.
+This is the `i18nHelper.config.json` config file:
 ```json
 {
   "targetFolder": "../path/to/common/folder",
-  "additionalFolders": [
-    "../other/path/to/copy/targetFolder/1",
-    "../other/path/to/copy/targetFolder/2"
-  ],
+  "isIntl": false,
+  "keyCase": "camelCase",
   "sortItemByName": true
 }
-```    
+```
+
+### Config Options
+- `targetFolder`: Path to folder containing locale subfolders  
+- `isIntl`: `false` for flat JSON (i18n), `true` for nested JSON (intl)
+- `keyCase`: Key naming convention (`"camelCase"`, `"snake_case"`, `"kebab-case"`)
+- `sortItemByName`: Whether to sort keys alphabetically
+
+## JSON Structure Support
+
+### i18n Format (isIntl: false)
+Flat key-value structure:
+```json
+{
+  "hello": "Hello",
+  "goodbye": "Goodbye",
+  "welcomeMessage": "Welcome to our app"
+}
+```
+
+### intl Format (isIntl: true)
+Nested namespace structure:
+```json
+{
+  "contact": {
+    "header": "Contact Us",
+    "form": {
+      "name": "Name",
+      "email": "Email"
+    }
+  },
+  "navigation": {
+    "home": "Home",
+    "about": "About"
+  }
+}
+```
+
 > #### `find`
 
 | Option | Description |
@@ -61,59 +91,75 @@ this is the `i18nHelper.config.json` config file.
 | `[search-in]` | Where to search (key, value, or both) |
 | `[locale]` | Locale to search in |
 
-Searches for a word in the common.json files.
+Searches for a word in the common.json files. Supports both flat and nested structures.
 
 Example:
 ```bash
+# i18n format
 i18nHelp find hello --search-in key --locale en
-# This command will search for the word "hello" in the "key" field of the "tr" locale in the common.json files.
-```
 
-> #### `copy`
-
-Copies locale files from `targetFolder` to `additionalFolders`. This ll come in handy if you manually modify the files.
-
-Example:
-```bash
-i18nHelp copy
-# This command will copies files from `targetFolder` to `additionalFolders`
+# intl format - searches in nested paths
+i18nHelp find contact --search-in key --locale en
 ```
 
 > #### `add`
 
 | Option | Description |
 | --- | --- |
-| `<key>` | Key of the word to add |
+| `<key>` | Key/path of the word to add (e.g., 'hello' or 'contact.header') |
 | `<value>` | Value of the key to add |
-| `[locale]` | Locale to add the key-value pair to |
-| `[overwrite]` | Overwrite existing key |
+| `--locale` | Locale-specific values (e.g., tr=merhaba) |
+| `--overwrite` | Overwrite existing key |
+| `--auto-fix` | Automatically fix key case issues |
+| `--skip-validation` | Skip key case validation |
 
-Adds a new key-value pair to all common.json files.
+Adds a new key-value pair to all common.json files. Supports both flat and nested structures with key case validation.
 
 Example:
 ```bash
+# i18n format (flat)
 i18nHelp add hello world --locale tr=merhaba --overwrite
-# This command will add the word 'hello' with value 'world' and the Turkish value 'merhaba' to the common.json files, overwriting any existing key. And if DEEPL_API_KEY has set in your `.env` file, default word 'world' will be translated to related language except locale "tr" because it's manually set.
+
+# intl format (nested)
+i18nHelp add contact.header "Contact Us" --locale tr="Bize Ulaşın"
+
+# With auto-fix for case issues
+i18nHelp add contact_header "Contact Header" --auto-fix
+# contact_header will be converted to contactHeader (if keyCase is camelCase)
 ```
 
-in your `.env.*` files:
-```.env
-DEEPL_API_KEY=deepL api key
+### Key Case Validation
+The tool enforces key naming conventions based on the `keyCase` config:
+- `camelCase`: contactHeader, userName, formData
+- `snake_case`: contact_header, user_name, form_data  
+- `kebab-case`: contact-header, user-name, form-data
+
+### DeepL Integration
+Set up automatic translation in your `.env.*` files:
+```env
+DEEPL_API_KEY=your_deepl_api_key_here
 ```
 
 > #### `delete`
 
 | Option | Description |
 | --- | --- |
-| `<key>` | Key of the entry to delete |
-| `[selective]` | Choose from all occurrences |
+| `<key>` | Key/path of the entry to delete |
+| `--selective` | Choose from all occurrences |
 
-Deletes a key from all common.json files.
+Deletes a key/path from all common.json files. Supports both flat and nested structures.
 
 Example:
 ```bash
+# i18n format (exact match)
+i18nHelp delete hello
+
+# intl format (nested path)
+i18nHelp delete contact.header
+
+# Selective deletion (search and choose)
 i18nHelp delete hello --selective
-# This command will find all occurrences of the word 'hello' in the common.json files, including partial matches, and ask you to select which ones to delete, separated by commas (e.g. 1,3,5). If "--selective" is not used, the command will delete the key only if it matches exactly.
+# This will find all occurrences and let you select which ones to delete
 ```
 
 > #### `unused`
@@ -122,20 +168,49 @@ i18nHelp delete hello --selective
 | --- | ---|
 | `[dir]` | Directory to search in|
 
-Finds unused keys in common.json files.
+Finds unused keys in common.json files by scanning source code files.
 
 Example:
 ```bash
 i18nHelp unused /path/to/directory
-# These listed keys might be used as a parameter. Only keys found directly in the file are listed.
+# These listed keys might be used as parameters. Only keys found directly in files are listed.
 ```
 
+## Migration Guide
+
+### From v0.1.x to v0.2.x
+
+1. **Config Changes**: The config structure has changed:
+   ```json
+   // Old format
+   {
+     "targetFolder": "../locales",
+     "additionalFolders": ["../dist/locales"],
+     "sortItemByName": true
+   }
+   
+   // New format
+   {
+     "targetFolder": "../locales", 
+     "isIntl": false,
+     "keyCase": "camelCase",
+     "sortItemByName": true
+   }
+   ```
+
+2. **Removed Features**:
+   - `additionalFolders` support has been removed
+   - `copy` command has been removed
+
+3. **New Features**:
+   - intl format support with nested JSON
+   - Key case validation and auto-fix
+   - Enhanced nested search capabilities
+
 ## License
--------
 
 i18n-help is licensed under the MIT License.
 
 ## Author
-------
 
 myniqx

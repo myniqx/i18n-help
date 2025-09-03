@@ -7,6 +7,7 @@ import * as deepL from 'deepl-node';
 import { dirname } from "path";
 import { fileURLToPath } from "url";
 import dotenv from 'dotenv-flow';
+import process from "process";
 
 const program = new Command()
 const execute = "#G$ i18nHelp# "
@@ -57,20 +58,23 @@ function logExt(str: string, icon: 'success' | 'fail' | 'log' | null = 'log') {
 
 interface Config {
   targetFolder: string
-  additionalFolders: string[]
+  isIntl: boolean
+  keyCase: 'camelCase' | 'snake_case' | 'kebab-case'
   sortItemByName: boolean
 }
 
 class ExtConfig implements Config {
   targetFolder: string;
-  additionalFolders: string[];
+  isIntl: boolean;
+  keyCase: 'camelCase' | 'snake_case' | 'kebab-case';
   sortItemByName: boolean;
   deepL_ApiKey: string;
   folders: string[]
 
   constructor(config: Config) {
     this.targetFolder = config.targetFolder
-    this.additionalFolders = config.additionalFolders
+    this.isIntl = config.isIntl
+    this.keyCase = config.keyCase
     this.sortItemByName = config.sortItemByName
     this.deepL_ApiKey = "";
     this.folders = fs.readdirSync(config.targetFolder)
@@ -119,32 +123,6 @@ class ExtConfig implements Config {
     }
   }
 
-  copyToAllTargets() {
-    this.foldersCheck()
-
-    for (const folder of this.folders) {
-      const commonJsonPath = path.join(this.targetFolder, folder, "common.json");
-      if (!fs.existsSync(commonJsonPath)) continue;
-      const commonJson = fs.readFileSync(commonJsonPath, "utf8");
-      const additionalMessage = this.writeToAdditionalFolders(folder, commonJson)
-      logExt(`Copied to #G${folder}# folder${additionalMessage}.`);
-    }
-  }
-
-  writeToAdditionalFolders(folder: string, data: string): string {
-    this.additionalFolders.forEach((additionalFolder) => {
-      const additionalFolderPath = path.join(additionalFolder, folder)
-      if (!fs.existsSync(additionalFolderPath)) {
-        fs.mkdirSync(additionalFolderPath)
-      }
-      const filePath = path.join(additionalFolderPath, "common.json")
-      fs.writeFileSync(filePath, data)
-    })
-
-    return this.additionalFolders.length === 0 ?
-      "." :
-      ` and #Y${this.additionalFolders.length}# additional folders.`
-  }
 
   readDeepLApiKey() {
     if (this.deepL_ApiKey)
@@ -184,16 +162,13 @@ const readConfig = (readEnv = false): ExtConfig => {
 program
   .command("setup")
   .argument("<targetFolder>", "target folder to setup")
-  .argument(
-    "[additionalFolders...]",
-    "additional folders to copy locale files to",
-  )
   .description("Setup required config file.")
-  .action((targetFolder, additionalFolders) => {
+  .action((targetFolder: string) => {
     const configFile = path.join(process.cwd(), "i18nHelper.config.json")
     const config = {
       targetFolder,
-      additionalFolders: additionalFolders ?? [],
+      isIntl: false,
+      keyCase: 'camelCase' as const,
       sortItemByName: true
     } satisfies Config
     fs.writeFileSync(configFile, JSON.stringify(config, null, 2))
@@ -223,11 +198,26 @@ const find = (
   const valueSearch = searchIn === "value" || searchIn === "both"
   const commonJsonObj = config.getCommonFileAsObject(locale)
   const lowerWord = anyWord.toLowerCase()
-  const foundEntries = Object.entries(commonJsonObj).filter(([key, value]) => {
-    if (keySearch && key.toLowerCase().includes(lowerWord)) return true
-    if (valueSearch && value.toLowerCase().includes(lowerWord)) return true
-    return false
-  })
+
+  let foundEntries: Array<{ path: string, value: string }> = []
+
+  if (config.isIntl) {
+    // Use nested search for intl format
+    foundEntries = findInNested(commonJsonObj, anyWord).filter(entry => {
+      if (keySearch && entry.path.toLowerCase().includes(lowerWord)) return true
+      if (valueSearch && entry.value.toLowerCase().includes(lowerWord)) return true
+      return false
+    })
+  } else {
+    // Use flat search for i18n format
+    foundEntries = Object.entries(commonJsonObj)
+      .filter(([key, value]) => {
+        if (keySearch && key.toLowerCase().includes(lowerWord)) return true
+        if (valueSearch && (value as string).toLowerCase().includes(lowerWord)) return true
+        return false
+      })
+      .map(([key, value]) => ({ path: key, value: value as string }))
+  }
 
   if (foundEntries.length === 0) {
     console.log("No entries found.")
@@ -235,21 +225,21 @@ const find = (
   }
 
   logExt(`Found #G${foundEntries.length}# entries:`)
-  return foundEntries.reduce((acc, [key, value], index) => {
+  return foundEntries.reduce((acc, entry, index) => {
     if (keySearch || valueSearch) {
       logExt(`\nResult ##Y${index + 1}#`)
-      acc[index + 1] = key
+      acc[index + 1] = entry.path
     }
     if (keySearch) {
-      var keyColored = key.replace(
+      var keyColored = entry.path.replace(
         new RegExp(`(${lowerWord})`, "gi"),
         "#R$1#",
       )
-      logExt(`Key   : ${keyColored}`)
+      logExt(`${config.isIntl ? 'Path' : 'Key'}  : ${keyColored}`)
     }
 
     if (!valueSearch) return acc
-    var valueColored = (value as string).replace(
+    var valueColored = entry.value.replace(
       new RegExp(`(${lowerWord})`, "gi"),
       "#R$1#",
     )
@@ -275,22 +265,10 @@ ${example}:
   This command will search for the word '#Chello#' in the '#Gkey#' field of the '#Ctr#' locale in the common.json files.`,
     ))
   .description("Searches for a word in the common.json files.")
-  .action((anyWord, searchIn, locale) => {
-    find(anyWord, searchIn ?? "both", locale)
+  .action((anyWord: string, searchIn: string, locale: string) => {
+    find(anyWord, (searchIn ?? "both") as "key" | "value" | "both", locale)
   })
 
-/******************************
-  COPY
-
-*******************************/
-
-program
-  .command("copy")
-  .description("Copies locale files to target folder.")
-  .action(() => {
-    const config = readConfig()
-    config.copyToAllTargets()
-  })
 
 /******************************
   ADD
@@ -317,33 +295,202 @@ function sortObjectKeys(obj: { [key: string]: any }): { [key: string]: any } {
   )
 }
 
+// Nested JSON utility functions
+function setNestedValue(obj: any, path: string, value: string): void {
+  const keys = path.split('.')
+  let current = obj
+
+  for (let i = 0; i < keys.length - 1; i++) {
+    const key = keys[i]
+    if (!(key in current) || typeof current[key] !== 'object') {
+      current[key] = {}
+    }
+    current = current[key]
+  }
+
+  current[keys[keys.length - 1]] = value
+}
+
+function getNestedValue(obj: any, path: string): string | undefined {
+  const keys = path.split('.')
+  let current = obj
+
+  for (const key of keys) {
+    if (typeof current !== 'object' || current === null || !(key in current)) {
+      return undefined
+    }
+    current = current[key]
+  }
+
+  return typeof current === 'string' ? current : undefined
+}
+
+function deleteNestedValue(obj: any, path: string): boolean {
+  const keys = path.split('.')
+  let current = obj
+  const parents: any[] = []
+
+  for (let i = 0; i < keys.length - 1; i++) {
+    const key = keys[i]
+    if (typeof current !== 'object' || current === null || !(key in current)) {
+      return false
+    }
+    parents.push({ obj: current, key })
+    current = current[key]
+  }
+
+  const lastKey = keys[keys.length - 1]
+  if (typeof current !== 'object' || current === null || !(lastKey in current)) {
+    return false
+  }
+
+  delete current[lastKey]
+
+  // Clean up empty parent objects
+  for (let i = parents.length - 1; i >= 0; i--) {
+    const parent = parents[i]
+    if (Object.keys(parent.obj[parent.key]).length === 0) {
+      delete parent.obj[parent.key]
+    } else {
+      break
+    }
+  }
+
+  return true
+}
+
+function findInNested(obj: any, searchTerm: string, basePath = ''): Array<{ path: string, value: string }> {
+  const results: Array<{ path: string, value: string }> = []
+  const lowerSearchTerm = searchTerm.toLowerCase()
+
+  function traverse(current: any, currentPath: string) {
+    if (typeof current === 'string') {
+      if (current.toLowerCase().includes(lowerSearchTerm) ||
+        currentPath.toLowerCase().includes(lowerSearchTerm)) {
+        results.push({ path: currentPath, value: current })
+      }
+    } else if (typeof current === 'object' && current !== null) {
+      for (const [key, value] of Object.entries(current)) {
+        const newPath = currentPath ? `${currentPath}.${key}` : key
+        traverse(value, newPath)
+      }
+    }
+  }
+
+  traverse(obj, basePath)
+  return results
+}
+
+// Key case validation functions
+function validateKeyCase(key: string, caseType: 'camelCase' | 'snake_case' | 'kebab-case'): boolean {
+  switch (caseType) {
+    case 'camelCase':
+      return /^[a-z][a-zA-Z0-9]*$/.test(key)
+    case 'snake_case':
+      return /^[a-z][a-z0-9_]*$/.test(key)
+    case 'kebab-case':
+      return /^[a-z][a-z0-9-]*$/.test(key)
+    default:
+      return true
+  }
+}
+
+function fixKeyCase(key: string, caseType: 'camelCase' | 'snake_case' | 'kebab-case'): string {
+  // Convert to camelCase first
+  let camelCase = key
+    .replace(/[-_\s]+(.)?/g, (_, char) => char ? char.toUpperCase() : '')
+    .replace(/^[A-Z]/, char => char.toLowerCase())
+
+  switch (caseType) {
+    case 'camelCase':
+      return camelCase
+    case 'snake_case':
+      return camelCase.replace(/[A-Z]/g, char => `_${char.toLowerCase()}`)
+    case 'kebab-case':
+      return camelCase.replace(/[A-Z]/g, char => `-${char.toLowerCase()}`)
+    default:
+      return key
+  }
+}
+
+function validatePath(path: string, caseType: 'camelCase' | 'snake_case' | 'kebab-case'): { valid: boolean, invalidKeys: string[] } {
+  const keys = path.split('.')
+  const invalidKeys: string[] = []
+
+  for (const key of keys) {
+    if (!validateKeyCase(key, caseType)) {
+      invalidKeys.push(key)
+    }
+  }
+
+  return {
+    valid: invalidKeys.length === 0,
+    invalidKeys
+  }
+}
+
+function fixPath(path: string, caseType: 'camelCase' | 'snake_case' | 'kebab-case'): string {
+  return path.split('.').map(key => fixKeyCase(key, caseType)).join('.')
+}
+
 /**
- * Add a new word to all common.json files in the target folder and its additional folders.
+ * Add a new word to all common.json files in the target folder.
  *
- * @param key The key of the word to add.
+ * @param key The key/path of the word to add (e.g., "hello" or "contact.header").
  * @param value The value of the word to add.
  * @param localeValues An object with locale as key and value as value.
  * @param overwrite If true, overwrite existing key.
+ * @param autoFix If true, automatically fix key case issues.
+ * @param skipValidation If true, skip key case validation.
  */
 const add = async (
   key: string,
   value: string,
   localeValues = {} as Record<string, string>,
   overwrite = false,
+  autoFix = false,
+  skipValidation = false,
 ) => {
   const config = readConfig(true);
 
-  await config.forEachFile(async (folder, commonJsonPath, commonJsonObj) => {
+  // Key validation
+  if (!skipValidation) {
+    const validation = validatePath(key, config.keyCase);
+    if (!validation.valid) {
+      if (autoFix) {
+        const fixedKey = fixPath(key, config.keyCase);
+        logExt(`Key case fixed: #Y${key}# → #G${fixedKey}#`);
+        key = fixedKey;
+      } else {
+        logExt(`#RError#: Invalid key case for #Y${key}#. Expected #G${config.keyCase}# format.`);
+        logExt(`Invalid parts: ${validation.invalidKeys.map(k => `#R${k}#`).join(', ')}`);
+        logExt(`Use #Y--auto-fix# to automatically correct or #Y--skip-validation# to bypass.`);
+        return;
+      }
+    }
+  }
 
-    if (commonJsonObj[key] && !overwrite) {
+  await config.forEachFile(async (folder, commonJsonPath, commonJsonObj) => {
+    // Check if key exists (different for i18n vs intl)
+    const keyExists = config.isIntl ?
+      getNestedValue(commonJsonObj, key) !== undefined :
+      commonJsonObj[key] !== undefined;
+
+    if (keyExists && !overwrite) {
       logExt(
-        `Key #G${key}# already#R exists# in #G${folder}# folder. try "#Y--overwrite#" if you want to overwrite.`,
+        `Key #G${key}# already#R exists# in #G${folder}# folder. Use "#Y--overwrite#" to overwrite.`,
       );
       return;
     }
 
     const localeValue = localeValues[folder] ?? (await translateText(config.deepL_ApiKey, value, folder));
-    commonJsonObj[key] = localeValue;
+
+    if (config.isIntl) {
+      setNestedValue(commonJsonObj, key, localeValue);
+    } else {
+      commonJsonObj[key] = localeValue;
+    }
+
     const sortedCommonJsonObj =
       config.sortItemByName === true
         ? sortObjectKeys(commonJsonObj)
@@ -351,9 +498,8 @@ const add = async (
 
     const jsonString = JSON.stringify(sortedCommonJsonObj, null, 2);
     fs.writeFileSync(commonJsonPath, jsonString);
-    const additionalMessage = config.writeToAdditionalFolders(folder, jsonString)
 
-    logExt(`Added #C${key}#: #G${localeValue}# to #G${folder}# folder${additionalMessage}.`);
+    logExt(`Added #C${key}#: #G${localeValue}# to #G${folder}# folder.`);
   })
 };
 
@@ -362,18 +508,19 @@ program
   .description(
     "Add a new key=value entry to all common.json files in the target folder.",
   )
-  .argument("<key>", "Key of the word to add")
+  .argument("<key>", "Key/path of the word to add (e.g., 'hello' or 'contact.header')")
   .argument(
     "<value>", colored(
-      `value of the key to add (this ll be used every locale file, if "#Y--locale#" options says otherwise)
+      `value of the key to add (will be used for every locale file, unless "#Y--locale#" specifies otherwise)
 ${example}:
   ${execute} add #Chello# #Cworld# #Y--locale# #Ctr=merhaba# #Y--overwrite#
-  This command will add the word 'hello' with the English value 'world' and the Turkish value 'merhaba' to the common.json files, overwriting any existing key.`,
-  ))
+  ${execute} add #Ccontact.header# #CContact Us# #Y--locale# #Ctr=Bize Ulaşın#
+  The first command adds a flat key, the second adds a nested key for intl format.`,
+    ))
   .option(
     "-l, --locale <locale-value>",
     `Add locale value (e.g. #Ctr=merhaba#)`,
-    (value, previous) => {
+    (value: string, previous: Record<string, string>) => {
       if (!value) return previous
       const parts = value.split("=")
       const key = parts[0]
@@ -383,8 +530,10 @@ ${example}:
     {} as Record<string, string>,
   )
   .option("-o, --overwrite", "Overwrite existing key", () => true, false)
-  .action((key, value, options) => {
-    add(key, value, options.locale, options.overwrite)
+  .option("-f, --auto-fix", "Automatically fix key case issues", () => true, false)
+  .option("-s, --skip-validation", "Skip key case validation", () => true, false)
+  .action((key: string, value: string, options: any) => {
+    add(key, value, options.locale, options.overwrite, options.autoFix, options.skipValidation)
   })
 
 /******************************
@@ -393,32 +542,42 @@ ${example}:
 *******************************/
 
 /**
- * Delete keys from all common.json files in the target folder and its additional folders.
+ * Delete keys/paths from all common.json files in the target folder.
  *
- * @param {string[]} keys The keys to delete.
+ * @param {string[]} keys The keys/paths to delete.
  */
 const deleteKeys = (keys: string[]) => {
   const config = readConfig()
 
   config.forEachFile(async (folder, commonJsonPath, commonJsonObj) => {
     const deletedKeys: string[] = []
+
     keys.forEach((key) => {
-      if (commonJsonObj[key]) {
+      let deleted = false
+
+      if (config.isIntl) {
+        deleted = deleteNestedValue(commonJsonObj, key)
+      } else {
+        if (commonJsonObj[key]) {
+          delete commonJsonObj[key]
+          deleted = true
+        }
+      }
+
+      if (deleted) {
         deletedKeys.push(key)
-        delete commonJsonObj[key]
       }
     })
 
     if (deletedKeys.length === 0) {
-      logExt(`No#R key# found in #G${folder}# folder.`)
+      logExt(`No#R key/path# found in #G${folder}# folder.`)
       return
     }
 
     const jsonString = JSON.stringify(commonJsonObj, null, 2)
     fs.writeFileSync(commonJsonPath, jsonString)
-    const additionalMessage = config.writeToAdditionalFolders(folder, jsonString)
     const strDeleted = deletedKeys.map(k => `#C${k}#`).join(", ")
-    logExt(`Deleted ${strDeleted} from #G${folder}# folder${additionalMessage}`)
+    logExt(`Deleted ${strDeleted} from #G${folder}# folder.`)
   })
 }
 
@@ -438,9 +597,9 @@ const deleteKey = (key: string, selective = false) => {
   if (!result) return
   console.log("Enter the key's numbers to delete separated by comma (,) :")
   process.stdin.setEncoding("utf8")
-  process.stdin.on("data", (input) => {
+  process.stdin.on("data", (input: any) => {
     const numbers = input.toString().split(",")
-    const list = numbers.map((n) => result[+n])
+    const list = numbers.map((n: string) => result[+n])
     deleteKeys(list)
     process.stdin.destroy()
   })
@@ -450,16 +609,17 @@ program
   .command("delete")
   .argument(
     "<key>",
-    `Key of the entry to delete or word to search if option --selective is used
+    `Key/path of the entry to delete or word to search if option --selective is used
 ${example}:
   ${execute} delete #Chello# #Y--selective#
-  This command will find all occurrences of the word 'hello' in the common.json files, including partial matches, and ask you to select which ones to delete, separated by commas (e.g. 1,3,5).
+  ${execute} delete #Ccontact.header#
+  The first command searches and lets you select which keys to delete. The second deletes a specific nested path.
 \nNote:
-  If #Y--selective# is not used, the command will delete the key only if it matches exactly.`,
+  If #Y--selective# is not used, the command will delete the key/path only if it matches exactly.`,
   )
-  .description("Delete a key from all common.json files.")
+  .description("Delete a key/path from all common.json files.")
   .option("-s, --selective", "Choose from all occurrences", () => true, false)
-  .action((key, options) => {
+  .action((key: string, options: any) => {
     deleteKey(key, options.selective)
   })
 
@@ -524,7 +684,7 @@ program
   .command("unused")
   .argument("[dir]", "the directory to search in", process.cwd())
   .description("Find unused keys in common.json files.")
-  .action((dir) => {
+  .action((dir: string) => {
     unused(dir)
   })
 
